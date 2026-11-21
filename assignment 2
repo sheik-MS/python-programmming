@@ -1,1 +1,121 @@
+import time
 
+# --------------------------------
+# ORIGINAL PROGRAM: PLAIN RECURSION
+# --------------------------------
+
+naive_calls = 0
+
+def ways_naive(n):
+    global naive_calls
+    naive_calls += 1
+
+    if n <= 1:
+        return 1
+
+    return ways_naive(n - 1) + ways_naive(n - 2)
+
+
+# --------------------------------
+# REDESIGNED PROGRAM: ITERATIVE DP
+# --------------------------------
+
+iterative_steps = 0
+
+def ways_iterative(n):
+    global iterative_steps
+
+    if n <= 1:
+        return 1
+
+    # Store only the previous two results
+    previous_two = 1
+    previous_one = 1
+
+    for i in range(2, n + 1):
+        iterative_steps += 1
+
+        current = previous_one + previous_two
+
+        previous_two = previous_one
+        previous_one = current
+
+    return previous_one
+
+
+# --------------------------------
+# PERFORMANCE COMPARISON
+# --------------------------------
+
+print("Q7 - REDESIGN AND PERFORMANCE ANALYSIS")
+print("=" * 65)
+
+test_values = [10, 20, 25, 30]
+
+print("\nORIGINAL vs REDESIGNED PROGRAM")
+print("-" * 65)
+
+for n in test_values:
+
+    # Original recursive method
+    naive_calls = 0
+
+    start = time.perf_counter()
+    original_result = ways_naive(n)
+    original_time = time.perf_counter() - start
+
+    original_count = naive_calls
+
+    # Redesigned iterative method
+    iterative_steps = 0
+
+    start = time.perf_counter()
+    redesigned_result = ways_iterative(n)
+    redesigned_time = time.perf_counter() - start
+
+    redesigned_count = iterative_steps
+
+    print("\nNumber of steps:", n)
+
+    print("Original result:", original_result)
+    print("Original function calls:", original_count)
+    print("Original time: {:.8f} seconds".format(original_time))
+
+    print("Redesigned result:", redesigned_result)
+    print("Redesigned iterations:", redesigned_count)
+    print("Redesigned time: {:.8f} seconds".format(redesigned_time))
+
+    print("Results match:", original_result == redesigned_result)
+
+
+# --------------------------------
+# TEST FOR 1000 STEPS
+# --------------------------------
+
+print("\n" + "=" * 65)
+print("TESTING REDESIGNED PROGRAM FOR 1000 STEPS")
+print("=" * 65)
+
+iterative_steps = 0
+
+start = time.perf_counter()
+result = ways_iterative(1000)
+execution_time = time.perf_counter() - start
+
+print("Number of steps: 1000")
+print("Number of ways:", result)
+print("Iterations:", iterative_steps)
+print("Execution time: {:.8f} seconds".format(execution_time))
+
+
+# --------------------------------
+# FINAL VALIDATION
+# --------------------------------
+
+print("\n" + "=" * 65)
+print("FINAL VALIDATION")
+
+for n in range(1, 7):
+    print("Steps:", n, "Ways:", ways_iterative(n))
+
+print("\nRedesign completed successfully.")

@@ -1,1 +1,153 @@
+```python
+from decimal import Decimal, ROUND_HALF_UP
 
+# Original rate card
+NORMAL_BASE_RATE = Decimal("30.00")
+NORMAL_FAT_STEP = Decimal("0.40")
+NORMAL_SNF_STEP = Decimal("0.30")
+
+# Seasonal rate card (April to June)
+SEASONAL_BASE_RATE = Decimal("32.00")
+SEASONAL_FAT_STEP = Decimal("0.45")
+SEASONAL_SNF_STEP = Decimal("0.30")
+
+# Bonus details
+BONUS_LIMIT = Decimal("500")
+BONUS_PER_LITRE = Decimal("0.50")
+
+STANDARD_FAT = Decimal("3.50")
+STANDARD_SNF = Decimal("8.50")
+STEP_SIZE = Decimal("0.10")
+
+
+def select_rate_card(month):
+    """Select the rate card based on the month."""
+
+    if month in [4, 5, 6]:
+        return (
+            SEASONAL_BASE_RATE,
+            SEASONAL_FAT_STEP,
+            SEASONAL_SNF_STEP
+        )
+
+    return (
+        NORMAL_BASE_RATE,
+        NORMAL_FAT_STEP,
+        NORMAL_SNF_STEP
+    )
+
+
+def calculate_steps(value, standard):
+    """Calculate the nearest 0.1 percentage step."""
+
+    difference = (value - standard) / STEP_SIZE
+
+    return difference.quantize(
+        Decimal("1"),
+        rounding=ROUND_HALF_UP
+    )
+
+
+def rate_per_litre(fat, snf, month):
+    """Calculate milk rate per litre."""
+
+    base, fat_step_value, snf_step_value = select_rate_card(month)
+
+    fat_steps = calculate_steps(fat, STANDARD_FAT)
+    snf_steps = calculate_steps(snf, STANDARD_SNF)
+
+    rate = (
+        base
+        + fat_steps * fat_step_value
+        + snf_steps * snf_step_value
+    )
+
+    return rate.quantize(Decimal("0.01"))
+
+
+def payout(litres, fat, snf, month):
+    """Calculate payment for one milk entry."""
+
+    rate = rate_per_litre(fat, snf, month)
+
+    amount = litres * rate
+
+    return amount.quantize(Decimal("0.01"))
+
+
+def calculate_bonus(total_litres):
+    """Give bonus only when supply exceeds 500 litres."""
+
+    if total_litres > BONUS_LIMIT:
+        return (
+            total_litres * BONUS_PER_LITRE
+        ).quantize(Decimal("0.01"))
+
+    return Decimal("0.00")
+
+
+def ten_day_total(entries, month):
+    """Calculate total milk payment and bonus for ten days."""
+
+    total_litres = sum(
+        (entry[0] for entry in entries),
+        Decimal("0.00")
+    )
+
+    total_payment = sum(
+        (
+            payout(entry[0], entry[1], entry[2], month)
+            for entry in entries
+        ),
+        Decimal("0.00")
+    )
+
+    bonus = calculate_bonus(total_litres)
+
+    final_amount = total_payment + bonus
+
+    return total_litres, total_payment, bonus, final_amount
+
+
+if __name__ == "__main__":
+
+    # Sample farmer entries for ten days
+    entries = [
+        (Decimal("100.00"), Decimal("3.50"), Decimal("8.50")),
+        (Decimal("120.00"), Decimal("4.20"), Decimal("8.70")),
+        (Decimal("150.00"), Decimal("3.10"), Decimal("8.30")),
+        (Decimal("100.00"), Decimal("3.80"), Decimal("8.60")),
+        (Decimal("80.00"), Decimal("4.00"), Decimal("8.90"))
+    ]
+
+    # April = seasonal rate
+    month = 4
+
+    print("TEN-DAY MILK PAYMENT STATEMENT")
+    print("--------------------------------")
+
+    for litres, fat, snf in entries:
+
+        rate = rate_per_litre(fat, snf, month)
+
+        amount = payout(litres, fat, snf, month)
+
+        print(
+            f"Litres: {litres:7} "
+            f"Fat: {fat:5} "
+            f"SNF: {snf:5} "
+            f"Rate: {rate:7} "
+            f"Amount: {amount:8}"
+        )
+
+    print("--------------------------------")
+
+    litres, payment, bonus, final = ten_day_total(
+        entries, month
+    )
+
+    print("Total Litres :", litres)
+    print("Milk Payment :", payment)
+    print("Bonus        :", bonus)
+    print("Final Payment:", final)
+```

@@ -1,1 +1,273 @@
+import time
+import random
+import string
 
+# -----------------------------------------
+# 1. NORMALISE PHONE NUMBERS
+# -----------------------------------------
+
+def normalise_phone(phone):
+    if not phone:
+        return ""
+
+    digits = ""
+
+    for ch in str(phone):
+        if ch.isdigit():
+            digits += ch
+
+    # Convert Indian numbers to a standard 10-digit format
+    if len(digits) == 12 and digits.startswith("91"):
+        digits = digits[2:]
+
+    if len(digits) == 11 and digits.startswith("0"):
+        digits = digits[1:]
+
+    return digits
+
+
+# -----------------------------------------
+# 2. NORMALISE NAMES AND EMAILS
+# -----------------------------------------
+
+def normalise_name(name):
+    if not name:
+        return ""
+
+    return " ".join(name.lower().strip().split())
+
+
+def normalise_email(email):
+    if not email:
+        return ""
+
+    return email.lower().strip()
+
+
+# -----------------------------------------
+# 3. CONTACT MERGING USING DICTIONARY
+# -----------------------------------------
+
+def merge_contacts(contacts):
+
+    merged = {}
+
+    for contact in contacts:
+
+        name = contact.get("name", "").strip()
+        phone = normalise_phone(contact.get("phone", ""))
+        email = normalise_email(contact.get("email", ""))
+
+        # Use phone number as the primary identity.
+        # Use email as a fallback when phone is missing.
+        if phone:
+            key = "PHONE:" + phone
+        elif email:
+            key = "EMAIL:" + email
+        else:
+            # Cannot safely identify a contact without phone or email
+            key = "UNMATCHED:" + str(id(contact))
+
+        if key not in merged:
+            merged[key] = {
+                "name": name,
+                "numbers": set(),
+                "emails": set()
+            }
+
+        if name and not merged[key]["name"]:
+            merged[key]["name"] = name
+
+        if phone:
+            merged[key]["numbers"].add(phone)
+
+        if email:
+            merged[key]["emails"].add(email)
+
+    return list(merged.values())
+
+
+# -----------------------------------------
+# 4. DISPLAY MERGED CONTACTS
+# -----------------------------------------
+
+def display_contacts(contacts):
+
+    print("\nMERGED CONTACT LIST")
+    print("=" * 50)
+
+    for i, contact in enumerate(contacts, 1):
+
+        print("\nContact", i)
+        print("Name:", contact["name"] or "Unknown")
+        print("Phone numbers:", sorted(contact["numbers"]))
+        print("Emails:", sorted(contact["emails"]))
+
+
+# -----------------------------------------
+# 5. SAMPLE CONTACT DATA
+# -----------------------------------------
+
+contacts = [
+
+    {
+        "name": "Dr. Ravi",
+        "phone": "+91 98400 12345",
+        "email": "ravi@gmail.com"
+    },
+
+    {
+        "name": "ravi kumar",
+        "phone": "9840012345",
+        "email": "ravi@gmail.com"
+    },
+
+    {
+        "name": "Priya",
+        "phone": "9876543210",
+        "email": "priya@gmail.com"
+    },
+
+    {
+        "name": "Priya",
+        "phone": "09876543210",
+        "email": "priya@yahoo.com"
+    },
+
+    {
+        "name": "Arun",
+        "phone": "",
+        "email": "arun@gmail.com"
+    },
+
+    {
+        "name": "Unknown",
+        "phone": "",
+        "email": ""
+    },
+
+    {
+        "name": "Kumar",
+        "phone": "9123456780",
+        "email": "kumar@gmail.com"
+    }
+]
+
+
+print("ORIGINAL CONTACTS")
+print("=" * 50)
+
+for contact in contacts:
+    print(contact)
+
+
+# Merge contacts
+result = merge_contacts(contacts)
+
+# Display result
+display_contacts(result)
+
+
+# -----------------------------------------
+# 6. PAIRWISE COMPARISON METHOD
+# -----------------------------------------
+
+def pairwise_merge(contacts):
+
+    groups = []
+
+    for contact in contacts:
+
+        phone = normalise_phone(contact.get("phone", ""))
+
+        if not phone:
+            continue
+
+        found = False
+
+        for group in groups:
+
+            if phone in group["numbers"]:
+                found = True
+
+                if contact.get("email"):
+                    group["emails"].add(
+                        normalise_email(contact["email"])
+                    )
+
+                break
+
+        if not found:
+
+            groups.append({
+                "numbers": {phone},
+                "emails": {
+                    normalise_email(contact["email"])
+                } if contact.get("email") else set()
+            })
+
+    return groups
+
+
+# -----------------------------------------
+# 7. GENERATE TEST DATA
+# -----------------------------------------
+
+def generate_contacts(n):
+
+    data = []
+
+    for i in range(n):
+
+        number = str(9000000000 + (i % (n // 2 + 1)))
+
+        contact = {
+            "name": "Person" + str(i),
+            "phone": number,
+            "email": "person" + str(i) + "@gmail.com"
+        }
+
+        data.append(contact)
+
+    return data
+
+
+# -----------------------------------------
+# 8. PERFORMANCE COMPARISON
+# -----------------------------------------
+
+print("\n\nPERFORMANCE COMPARISON")
+print("=" * 50)
+
+for size in [1000, 100000]:
+
+    test_data = generate_contacts(size)
+
+    # Dictionary method
+    start = time.perf_counter()
+    dictionary_result = merge_contacts(test_data)
+    dictionary_time = time.perf_counter() - start
+
+    print("\nNumber of contacts:", size)
+    print("Dictionary merging time: {:.6f} seconds".format(
+        dictionary_time
+    ))
+
+    # Pairwise comparison is measured at 1,000 contacts.
+    if size == 1000:
+
+        start = time.perf_counter()
+        pairwise_result = pairwise_merge(test_data)
+        pairwise_time = time.perf_counter() - start
+
+        print("Pairwise merging time: {:.6f} seconds".format(
+            pairwise_time
+        ))
+
+    else:
+
+        print("Pairwise comparison: skipped for 100,000 contacts")
+        print("Reason: O(n^2) comparisons may take too long.")
+
+
+print("\nProgram completed successfully.")

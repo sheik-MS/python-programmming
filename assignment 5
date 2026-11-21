@@ -1,1 +1,117 @@
+POSITIVE = {"good", "clean", "fast", "helpful", "improved"}
+NEGATIVE = {"bad", "dirty", "slow", "rude", "smoke", "broken"}
+NEGATORS = {"not", "never", "no"}
 
+def score(text):
+    """+1 per positive word, -1 per negative word; a preceding negator flips it."""
+    words = text.lower().replace(".", " ").replace(",", " ").split()
+    total = 0
+
+    for i, word in enumerate(words):
+        value = 0
+
+        if word in POSITIVE:
+            value = 1
+        elif word in NEGATIVE:
+            value = -1
+
+        if i > 0 and words[i - 1] in NEGATORS:
+            value = -value
+
+        total += value
+
+    return total
+
+
+def label(text):
+    s = score(text)
+    return "positive" if s > 0 else "negative" if s < 0 else "neutral"
+
+
+complaints = [
+    "Roads are clean and the bus was fast.",
+    "Smoke from the factory, air is bad.",
+    "The staff were not helpful.",
+    "Not bad, service improved.",
+    "The road is dirty and broken.",
+    "The air is clean and good.",
+    "The bus service is slow.",
+    "The workers are helpful.",
+    "The factory produces smoke.",
+    "The transport service is fast.",
+    "The roads are not clean.",
+    "The staff are rude.",
+    "The air quality improved.",
+    "The service is not bad.",
+    "The roads are broken.",
+    "The bus is not slow.",
+    "The environment is dirty.",
+    "The staff are not rude.",
+    "The air is good.",
+    "The service is broken.",
+    "The roads are clean.",
+    "The bus is fast.",
+    "The factory smoke is bad.",
+    "The workers are helpful.",
+    "The air is not clean.",
+    "The transport is slow.",
+    "The roads are improved.",
+    "The staff are not helpful.",
+    "The pollution is bad.",
+    "The service is good.",
+    "The road is dirty.",
+    "The bus is not fast.",
+    "The workers are rude.",
+    "The environment is clean.",
+    "The factory smoke is harmful.",
+    "The service improved.",
+    "The air is dirty.",
+    "The staff are helpful.",
+    "The road is not broken.",
+    "The bus service is good.",
+    "The pollution is not good.",
+    "The roads are fast.",
+    "The workers are slow.",
+    "The air quality is improved.",
+    "The service is not helpful.",
+    "The road is clean.",
+    "The factory produces smoke.",
+    "The bus is broken.",
+    "The staff are good.",
+    "The environment is not dirty."
+]
+
+print("SENTIMENT ANALYSIS RESULTS")
+print("-" * 60)
+
+for c in complaints:
+    print(f"{label(c):10} | {c}")
+
+print("\nTotal complaints:", len(complaints))
+
+# Manual evaluation
+actual_labels = [
+    "positive", "negative", "negative", "positive", "negative",
+    "positive", "negative", "positive", "negative", "positive",
+    "negative", "negative", "positive", "positive", "negative",
+    "positive", "negative", "positive", "positive", "negative",
+    "positive", "positive", "negative", "positive", "negative",
+    "negative", "positive", "negative", "negative", "positive",
+    "negative", "negative", "negative", "positive", "negative",
+    "positive", "negative", "positive", "positive", "positive",
+    "negative", "positive", "negative", "positive", "negative",
+    "positive", "negative", "negative", "positive", "positive"
+]
+
+agreement = 0
+
+for complaint, actual in zip(complaints, actual_labels):
+    if label(complaint) == actual:
+        agreement += 1
+
+accuracy = (agreement / len(complaints)) * 100
+
+print("\nMANUAL EVALUATION")
+print("Agreed labels:", agreement)
+print("Total complaints:", len(complaints))
+print("Agreement percentage:", round(accuracy, 2), "%")

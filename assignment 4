@@ -1,1 +1,316 @@
+import os
+import time
 
+# ==========================================
+# 1. EMAIL VALIDATION
+# ==========================================
+
+def valid_email(email):
+    email = email.strip()
+
+    if " " in email or email.count("@") != 1:
+        return False
+
+    parts = email.split("@")
+
+    if not parts[0] or not parts[1]:
+        return False
+
+    if "." not in parts[1]:
+        return False
+
+    if parts[1].startswith(".") or parts[1].endswith("."):
+        return False
+
+    return True
+
+
+# ==========================================
+# 2. VALIDATE REGISTRATION
+# ==========================================
+
+def validate_record(line):
+
+    parts = line.strip().split(",", 4)
+
+    if len(parts) != 5:
+        raise ValueError("Damaged record: missing fields")
+
+    reg_no, name, department, email, events = parts
+
+    reg_no = reg_no.strip()
+    name = name.strip()
+    department = department.strip()
+    email = email.strip().lower()
+
+    if not reg_no or not name or not department:
+        raise ValueError("Required field is empty")
+
+    if not valid_email(email):
+        raise ValueError("Invalid email address")
+
+    event_list = sorted({
+        event.strip()
+        for event in events.split(";")
+        if event.strip()
+    })
+
+    if not event_list:
+        raise ValueError("No events selected")
+
+    return {
+        "reg_no": reg_no,
+        "name": name,
+        "department": department,
+        "email": email,
+        "events": event_list
+    }
+
+
+# ==========================================
+# 3. PROCESS DEPARTMENT FILES
+# ==========================================
+
+def process_files(input_folder, output_folder, departments):
+
+    os.makedirs(output_folder, exist_ok=True)
+
+    master_list = []
+    seen_register_numbers = set()
+    event_dictionary = {}
+    error_log = []
+
+    for department in departments:
+
+        filename = os.path.join(
+            input_folder, department + ".txt"
+        )
+
+        try:
+            with open(filename, "r", encoding="utf-8") as file:
+
+                for line_number, line in enumerate(file, 1):
+
+                    if not line.strip():
+                        continue
+
+                    try:
+                        record = validate_record(line)
+
+                        if record["department"].lower() != department.lower():
+                            raise ValueError("Department mismatch")
+
+                        reg_no = record["reg_no"]
+
+                        # Duplicate detection
+                        if reg_no in seen_register_numbers:
+                            error_log.append(
+                                f"{filename}, Line {line_number}: "
+                                f"Duplicate registration {reg_no}"
+                            )
+                            continue
+
+                        seen_register_numbers.add(reg_no)
+
+                        master_list.append(record)
+
+                        # Group participants by event
+                        for event in record["events"]:
+
+                            if event not in event_dictionary:
+                                event_dictionary[event] = []
+
+                            event_dictionary[event].append(record)
+
+                    except ValueError as error:
+
+                        error_log.append(
+                            f"{filename}, Line {line_number}: {error}"
+                        )
+
+        except FileNotFoundError:
+
+            error_log.append(
+                f"{filename}: Department file not found"
+            )
+
+        except PermissionError:
+
+            error_log.append(
+                f"{filename}: Permission denied"
+            )
+
+        except UnicodeDecodeError:
+
+            error_log.append(
+                f"{filename}: Encoding error"
+            )
+
+        except OSError as error:
+
+            error_log.append(
+                f"{filename}: File error - {error}"
+            )
+
+    # ==========================================
+    # 4. WRITE MASTER LIST
+    # ==========================================
+
+    try:
+        with open(
+            os.path.join(output_folder, "master_list.csv"),
+            "w",
+            encoding="utf-8"
+        ) as file:
+
+            file.write(
+                "Register Number,Name,Department,Email,Events\n"
+            )
+
+            for record in master_list:
+
+                file.write(
+                    f"{record['reg_no']},"
+                    f"{record['name']},"
+                    f"{record['department']},"
+                    f"{record['email']},"
+                    f"{';'.join(record['events'])}\n"
+                )
+
+    except OSError as error:
+        error_log.append(f"Master list writing error: {error}")
+
+    # ==========================================
+    # 5. WRITE EVENT-WISE PARTICIPANT LISTS
+    # ==========================================
+
+    for event, participants in event_dictionary.items():
+
+        safe_name = "".join(
+            ch for ch in event
+            if ch.isalnum() or ch in ("_", "-")
+        )
+
+        event_file = os.path.join(
+            output_folder,
+            "event_" + safe_name + ".txt"
+        )
+
+        try:
+            with open(event_file, "w", encoding="utf-8") as file:
+
+                file.write("Event: " + event + "\n")
+                file.write("-" * 40 + "\n")
+
+                for participant in participants:
+
+                    file.write(
+                        f"{participant['reg_no']}, "
+                        f"{participant['name']}, "
+                        f"{participant['department']}\n"
+                    )
+
+        except OSError as error:
+            error_log.append(
+                f"Event file writing error ({event}): {error}"
+            )
+
+    # ==========================================
+    # 6. WRITE SUMMARY REPORT
+    # ==========================================
+
+    try:
+        with open(
+            os.path.join(output_folder, "summary_report.txt"),
+            "w",
+            encoding="utf-8"
+        ) as file:
+
+            file.write("COLLEGE FEST SUMMARY REPORT\n")
+            file.write("=" * 40 + "\n")
+
+            file.write(
+                f"Total registrations: {len(master_list)}\n"
+            )
+
+            file.write(
+                f"Total events: {len(event_dictionary)}\n"
+            )
+
+            file.write("\nEVENT-WISE PARTICIPANTS\n")
+
+            for event in sorted(event_dictionary):
+
+                file.write(
+                    f"{event}: {len(event_dictionary[event])}\n"
+                )
+
+    except OSError as error:
+        error_log.append(f"Summary writing error: {error}")
+
+    # ==========================================
+    # 7. WRITE ERROR LOG
+    # ==========================================
+
+    try:
+        with open(
+            os.path.join(output_folder, "error_log.txt"),
+            "w",
+            encoding="utf-8"
+        ) as file:
+
+            if error_log:
+                for error in error_log:
+                    file.write(error + "\n")
+            else:
+                file.write("No errors found.\n")
+
+    except OSError as error:
+        print("Unable to write error log:", error)
+
+    return master_list, event_dictionary, error_log
+
+
+# ==========================================
+# 8. MAIN PROGRAM
+# ==========================================
+
+if __name__ == "__main__":
+
+    input_folder = "input_files"
+    output_folder = "output_files"
+
+    departments = [
+        "CSE",
+        "ECE",
+        "EEE",
+        "MECH",
+        "CIVIL"
+    ]
+
+    start = time.perf_counter()
+
+    master, events, errors = process_files(
+        input_folder,
+        output_folder,
+        departments
+    )
+
+    end = time.perf_counter()
+
+    print("\nCOLLEGE FEST REGISTRATION SYSTEM")
+    print("=" * 45)
+
+    print("Total valid registrations:", len(master))
+    print("Total events:", len(events))
+    print("Total errors:", len(errors))
+
+    print("Execution time: {:.6f} seconds".format(end - start))
+
+    print("\nGenerated files:")
+    print("1. master_list.csv")
+    print("2. Event-wise participant files")
+    print("3. summary_report.txt")
+    print("4. error_log.txt")
+
+    print("\nProcessing completed successfully!")
